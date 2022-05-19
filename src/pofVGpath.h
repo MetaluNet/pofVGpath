@@ -13,12 +13,13 @@ class pofVGpath;
 class pofVGpath: public pofBase {
 	public:
 		pofVGpath(t_class *Class):
-			pofBase(Class), /*doMesh(false),*/ depth_correction(0), scale_correction(0.5), allocated(false)
+			pofBase(Class), /*doMesh(false),*/ segmented(true), fat(0), depth_correction(0), scale_correction(1), allocated(false)
 		{
 		}
 
 		ofPath path;
 		ofPoint size;
+		ofPoint xlate;
 		//ofPoint last;
 		//bool doMesh;
 		bool segmented;
@@ -31,9 +32,9 @@ class pofVGpath: public pofBase {
 		bool allocated;
 		deque<ofPoint> curveVertices;
 
-		void drawPath();
+		void drawPath(ofPoint scale);
 		void drawSegment();
-		void drawPathSegmented();
+		void drawPathSegmented(ofPoint scale);
 		virtual void draw();
 		virtual void message(int  arc, t_atom *argv);
 		static void setup(void);

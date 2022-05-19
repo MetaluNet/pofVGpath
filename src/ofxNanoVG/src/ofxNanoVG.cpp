@@ -19,6 +19,7 @@ public:
 	, stencil(0)
 	{
 		{
+			glGetError(); // clear last Gl error if any
 			glGenTextures(1, &color);
 			
 			glEnable(GL_TEXTURE_RECTANGLE);
@@ -38,7 +39,7 @@ public:
 			
 			glDisable(GL_TEXTURE_RECTANGLE);
 			
-			checkError();
+			checkError("1");
 		}
 		
 		{
@@ -47,7 +48,7 @@ public:
 			glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX, w, h);
 			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 			
-			checkError();
+			checkError("2");
 		}
 		
 		{
@@ -61,7 +62,7 @@ public:
 			}
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			
-			checkError();
+			checkError("3");
 		}
 	}
 	
@@ -94,11 +95,11 @@ public:
 	
 	void bind()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		//glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 	}
 	
 	void unbind() {
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	
 	void draw(float x, float y, float w, float h)
@@ -147,12 +148,12 @@ private:
 	
 	int width, height;
 	
-	void checkError()
+	void checkError(string context = "")
 	{
 		GLenum err = glGetError();
 		if (err != GL_NO_ERROR)
 		{
-			cout << glewGetErrorString(err) << endl;
+			cout << context << ": " << glewGetErrorString(err) << endl;
 			throw;
 		}
 	}
@@ -243,14 +244,14 @@ void Canvas::allocate(int width, int height)
 	
 	vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 	
-	FrameBuffer *o = new FrameBuffer(width, height);
-	framebuffer = shared_ptr<FrameBuffer>(o);
+	//FrameBuffer *o = new FrameBuffer(width, height);
+	//framebuffer = shared_ptr<FrameBuffer>(o);
 	
 	background_color.set(0, 0);
 	
-	framebuffer->bind();
-	framebuffer->clear(background_color.r, background_color.g, background_color.b, background_color.a);
-	framebuffer->unbind();
+	//framebuffer->bind();
+	//framebuffer->clear(background_color.r, background_color.g, background_color.b, background_color.a);
+	//framebuffer->unbind();
 }
 
 void Canvas::release()
@@ -261,7 +262,7 @@ void Canvas::release()
 		vg = NULL;
 	}
 	
-	framebuffer.reset();
+	//framebuffer.reset();
 }
 
 void Canvas::begin()
@@ -273,8 +274,8 @@ void Canvas::begin()
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
 	
-	framebuffer->bind();
-	framebuffer->clear(background_color.r, background_color.g, background_color.b, background_color.a);
+	//framebuffer->bind();
+	//framebuffer->clear(background_color.r, background_color.g, background_color.b, background_color.a);
 
 	nvgBeginFrame(vg, width, height, 1);
 	
@@ -290,10 +291,10 @@ void Canvas::end()
 	nvgEndFrame(vg);
 	
 	// {{{ quick fix for nanovg vbo unbind bug
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);
 	// }}}
 
-	framebuffer->unbind();
+	//framebuffer->unbind();
 	
 	ofPopView();
 	glPopAttrib();
@@ -304,7 +305,7 @@ void Canvas::draw(float x, float y, float w, float h)
 	if (w == 0) w = width;
 	if (h == 0) h = height;
 	
-	framebuffer->draw(x, y, w, h);
+	//framebuffer->draw(x, y, w, h);
 }
 
 void Canvas::fillColor(const ofFloatColor& c)

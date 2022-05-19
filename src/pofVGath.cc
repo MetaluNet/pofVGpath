@@ -76,8 +76,16 @@ static void pofpath_fat(void *x, float f)
 static void pofpath_size(void *x, float width, float height)
 {
 	pofVGpath* px = (pofVGpath*)(((PdObject*)x)->parent);
+	if(width < 50) width = 50;
+	if(height < 50) height = 50;
 	px->size.set(width, height);
 	px->allocated = false;
+}
+
+static void pofpath_xlate(void *x, float xx, float yy)
+{
+	pofVGpath* px = (pofVGpath*)(((PdObject*)x)->parent);
+	px->xlate = ofPoint(xx, yy);
 }
 
 static void pofpath_depth_correction(void *x, float c)
@@ -97,12 +105,6 @@ static void pofpath_segmented(void *x, float s)
 	pofVGpath* px = (pofVGpath*)(((PdObject*)x)->parent);
 	px->segmented = (s != 0);
 }
-
-/*static void pofpath_tellGui(void *x, t_symbol *s, int argc, t_atom *argv)
-{
-	pofVGpath* px = (pofVGpath*)(((PdObject*)x)->parent);
-	px->queueToGUI(s, argc, argv);
-}*/
 
 void pofVGpath::setup(void)
 {
@@ -131,6 +133,7 @@ void pofVGpath::setup(void)
 	//class_addmethod(pofpath_class, (t_method)pofpath_mesh, gensym("mesh"), A_FLOAT, A_NULL);
 	class_addmethod(pofpath_class, (t_method)pofpath_fat, gensym("fat"), A_FLOAT, A_NULL);
 	class_addmethod(pofpath_class, (t_method)pofpath_size, gensym("size"), A_DEFFLOAT, A_DEFFLOAT, A_NULL);
+	class_addmethod(pofpath_class, (t_method)pofpath_xlate, gensym("xlate"), A_DEFFLOAT, A_DEFFLOAT, A_NULL);
 	class_addmethod(pofpath_class, (t_method)pofpath_depth_correction, gensym("depth_correction"), A_DEFFLOAT, A_NULL);
 	class_addmethod(pofpath_class, (t_method)pofpath_scale_correction, gensym("scale_correction"), A_DEFFLOAT, A_NULL);
 	class_addmethod(pofpath_class, (t_method)pofpath_segmented, gensym("segmented"), A_DEFFLOAT, A_NULL);
@@ -139,13 +142,13 @@ void pofVGpath::setup(void)
 }
 
 
-void pofVGpath::drawPath()
+void pofVGpath::drawPath(ofPoint scale)
 {
 	ofMatrix4x4 mvp = ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
 
 	canvas.beginPath();
 	for (const ofPath::Command& c : path.getCommands()) {
-		ofPoint to = (ofPoint(c.to.x, c.to.y, c.to.z + depth_correction) * mvp) * ofPoint(ofGetWidth()/1, -ofGetHeight()/1) * scale_correction;
+		ofPoint to = (ofPoint(c.to.x, c.to.y, c.to.z + depth_correction) * mvp) * scale;
 		switch (c.type) {
 			case ofPath::Command::moveTo:
 				curveVertices.clear();
@@ -155,10 +158,12 @@ void pofVGpath::drawPath()
 				curveVertices.clear();
 				canvas.lineTo(to.x, to.y);
 				break;
+			/* TODO:
 			case ofPath::Command::bezierTo:
 				curveVertices.clear();
 				canvas.bezierTo(c.cp1.x, c.cp1.y, c.cp2.x, c.cp2.y, to.x, to.y);
 				break;
+			*/
 			case ofPath::Command::curveTo:
 				curveVertices.push_back(ofPoint(to.x, to.y));
 				if (curveVertices.size() == 4){
@@ -241,7 +246,7 @@ void pofVGpath::drawSegment()
 	canvas.strokePath();
 }
 
-void pofVGpath::drawPathSegmented()
+void pofVGpath::drawPathSegmented(ofPoint scale)
 {
 	ofMatrix4x4 mvp = ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
 	bool wasMove = false;
@@ -249,7 +254,7 @@ void pofVGpath::drawPathSegmented()
 	ofPoint last;
 	
 	for (const ofPath::Command& c : path.getCommands()) {
-		ofPoint to = (ofPoint(c.to.x, c.to.y, c.to.z + depth_correction) * mvp) * ofPoint(ofGetWidth()/1, -ofGetHeight()/1) * scale_correction;
+		ofPoint to = (ofPoint(c.to.x, c.to.y, c.to.z + depth_correction) * mvp) * scale;
 		switch (c.type) {
 			case ofPath::Command::moveTo:
 				curveVertices.clear();
@@ -258,15 +263,31 @@ void pofVGpath::drawPathSegmented()
 				break;
 			case ofPath::Command::lineTo:
 				curveVertices.clear();
+
+				if(strokeWidth > 0) {
+					canvas.beginPath();
+					canvas.lineCap(ofxNanoVG::LineCap::BUTT);
+					canvas.lineWidth(fat + strokeWidth);
+					canvas.strokeColor(path.getStrokeColor());
+					canvas.moveTo(last.x, last.y);
+					canvas.lineTo(to.x, to.y);
+					canvas.strokePath();
+				}
 				canvas.beginPath();
+				canvas.lineCap(ofxNanoVG::LineCap::ROUND);
+				canvas.lineWidth(fat);
+				canvas.strokeColor(path.getFillColor());
 				canvas.moveTo(last.x, last.y);
 				canvas.lineTo(to.x, to.y);
 				canvas.strokePath();
 				break;
-			/*case ofPath::Command::bezierTo:
+			/*
+			TODO:
+			case ofPath::Command::bezierTo:
 				curveVertices.clear();
 				canvas.bezierTo(c.cp1.x, c.cp1.y, c.cp2.x, c.cp2.y, to.x, to.y);
-				break;*/
+				break;
+			*/
 			case ofPath::Command::curveTo:
 				curveVertices.push_back(ofPoint(to.x, to.y));
 				if (curveVertices.size() == 4){
@@ -310,38 +331,45 @@ void pofVGpath::draw()
 		mesh.draw();
 	}
 	else */
+	if(fat == -1) {
+		if(!allocated) {
+			canvas.allocate(size.x, size.y);
+			allocated = true;
+		}
+		ofPushStyle();
+		ofPushView();
+		canvas.begin();
+		canvas.end();
+		ofSetupScreenOrtho();
+		ofPopView();
+		ofPopStyle();
+	}
+	else
 	if(fat > 0) {
 		if(!allocated) {
 			canvas.allocate(size.x, size.y);
 			allocated = true;
 		}
+		ofPoint viewportsize = ofPoint(ofGetViewportWidth(), ofGetViewportHeight());
+		ofPoint trans = ofPoint(viewportsize.x/2, size.y - viewportsize.y/2) + xlate;
+		ofPoint scale = viewportsize * ofPoint(0.5, -0.5) * scale_correction;
+		ofPushMatrix();
 		canvas.begin();
 		canvas.lineCap(ofxNanoVG::LineCap::ROUND);
 		canvas.lineJoin(ofxNanoVG::LineCap::ROUND);
-		canvas.translate(ofGetWidth()/2, ofGetHeight()/2);
-		if(segmented) drawPathSegmented();
+		canvas.translate(trans.x, trans.y);
+		if(segmented) drawPathSegmented(scale);
 		else {
 			canvas.lineWidth(fat + path.getStrokeWidth());
 			canvas.strokeColor(path.getStrokeColor());
-			drawPath();
+			drawPath(scale);
 		
 			canvas.lineWidth(fat);
 			canvas.strokeColor(path.getFillColor());
-			drawPath();
+			drawPath(scale);
 		}
 		canvas.end();
-		glMatrixMode(GL_MODELVIEW);  
-		ofPushMatrix();  
-		glMatrixMode(GL_PROJECTION);  
-		ofPushMatrix();  
-
-		ofSetupScreenOrtho(); 
-		canvas.draw(0,0);
-
-		glMatrixMode(GL_PROJECTION);  
-		ofPopMatrix();  
-		glMatrixMode(GL_MODELVIEW);  
-		ofPopMatrix();  
+		ofPopMatrix();
 	}
 	else {
 		path.draw();

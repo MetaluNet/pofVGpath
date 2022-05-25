@@ -144,7 +144,7 @@ void pofVGpath::setup(void)
 
 void pofVGpath::drawPath(ofPoint scale)
 {
-	ofMatrix4x4 mvp = ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
+	ofMatrix4x4 mvp = (ofMatrix4x4)ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * (ofMatrix4x4)ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
 
 	canvas.beginPath();
 	for (const ofPath::Command& c : path.getCommands()) {
@@ -248,7 +248,8 @@ void pofVGpath::drawSegment()
 
 void pofVGpath::drawPathSegmented(ofPoint scale)
 {
-	ofMatrix4x4 mvp = ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
+	ofMatrix4x4 mvp = (ofMatrix4x4)ofGetCurrentMatrix(OF_MATRIX_MODELVIEW) * (ofMatrix4x4)ofGetCurrentMatrix(OF_MATRIX_PROJECTION);
+
 	bool wasMove = false;
 	float strokeWidth = path.getStrokeWidth();
 	ofPoint last;
